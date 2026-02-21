@@ -4,6 +4,8 @@ import { Upload, Shield, Zap, CheckCircle, ArrowRight } from 'lucide-react'
 export default function Home() {
   const fileInputRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [loading, setLoading] = useState(false)
 
   const handleDragOver = (e) => {
     e.preventDefault()
@@ -30,8 +32,36 @@ export default function Home() {
     const files = e.target.files
     if (files && files.length > 0) {
       console.log('File selected:', files[0].name)
+      setSelectedFile(files[0])
     }
   }
+
+  const handleUpload = async () => {
+  if (!selectedFile) {
+    alert("Please select a file first.")
+    return
+  }
+
+  const formData = new FormData()
+  formData.append("file", selectedFile)
+
+  try {
+    setLoading(true)
+
+    const response = await fetch("/api/analyze", {
+      method: "POST",
+      body: formData
+    })
+
+    const data = await response.json()
+    console.log("Backend response:", data)
+
+  } catch (error) {
+    console.error("Upload failed:", error)
+  } finally {
+    setLoading(false)
+  }
+}
 
   return (
     <div className="min-h-screen bg-black overflow-hidden">
@@ -157,8 +187,8 @@ export default function Home() {
               Select File
             </button>
             <br />
-            <button className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-blue-500/50 transition">
-              Analyze Contract
+            <button className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-blue-500/50 transition" onClick={handleUpload}>
+              {loading?"Analyzing...":"Analyze Contract"}
             </button>
           </div>
         </section>
