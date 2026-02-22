@@ -1,0 +1,118 @@
+upload document
+analyze document (handleupload)
+parse the document in human readable form (pdfplumber)
+clean it
+find no. of clause
+
+Now your backend is ready for:
+👉 Clause classification
+👉 Risk detection
+👉 Strong clause identification
+
+fine tune:
+# =====================================
+# INSTALL
+# =====================================
+!pip install transformers datasets accelerate torch -q
+
+# =====================================
+# LOAD DATASET
+# =====================================
+from datasets import load_dataset
+import numpy as np
+
+print("Loading Unfair TOS dataset...")
+dataset = load_dataset("lex_glue", "unfair_tos")
+
+print(dataset)
+
+# =====================================
+# CONVERT TO SINGLE LABEL
+# =====================================
+def single_label(example):
+    # If multiple labels exist, just take the first one
+    if len(example["labels"]) > 0:
+        example["label"] = example["labels"][0]
+    else:
+        example["label"] = 0
+    return example
+
+dataset = dataset.map(single_label)
+
+dataset = dataset.remove_columns(["labels"])
+
+num_labels = 8   # unfair_tos has 8 classes
+
+# =====================================
+# LOAD MODEL
+# =====================================
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+model_name = "nlpaueb/legal-bert-base-uncased"
+
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+model = AutoModelForSequenceClassification.from_pretrained(
+    model_name,
+    num_labels=num_labels
+)
+
+# =====================================
+# TOKENIZE
+# =====================================
+def tokenize(example):
+    return tokenizer(
+        example["text"],
+        truncation=True,
+        padding="max_length",
+        max_length=512
+    )
+
+dataset = dataset.map(tokenize, batched=True)
+
+dataset.set_format(
+    type="torch",
+    columns=["input_ids", "attention_mask", "label"]
+)
+
+# =====================================
+# TRAIN
+# =====================================
+from transformers import TrainingArguments, Trainer
+
+training_args = TrainingArguments(
+    output_dir="./results",
+    eval_strategy="epoch",
+    save_strategy="epoch",
+    learning_rate=2e-5,
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=8,
+    num_train_epochs=2,
+    weight_decay=0.01,
+    load_best_model_at_end=True,
+    fp16=True
+)
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=dataset["train"],
+    eval_dataset=dataset["validation"]
+)
+
+print("Starting training...")
+trainer.train()
+
+# =====================================
+# SAVE
+# =====================================
+trainer.save_model("./legalbert_legal_model")
+tokenizer.save_pretrained("./legalbert_legal_model")
+
+import shutil
+shutil.make_archive("legalbert_legal_model", 'zip', "legalbert_legal_model")
+
+from google.colab import files
+files.download("legalbert_legal_model.zip")
+
+print("Training complete.")
