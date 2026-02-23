@@ -110,9 +110,7 @@ export default function Home() {
               <h1 className="text-2xl font-bold text-white">LexGuard AI</h1>
             </div>
             <nav className="flex gap-8">
-              <a href="#" className="text-gray-400 hover:text-white transition">Features</a>
-              <a href="#" className="text-gray-400 hover:text-white transition">How It Works</a>
-              <a href="#" className="text-gray-400 hover:text-white transition">Contact</a>
+              <a href="#" className="text-gray-400 hover:text-white transition">About</a>
             </nav>
           </div>
         </header>
@@ -315,9 +313,8 @@ export default function Home() {
               <div className="flex gap-8 text-gray-400 text-sm">
                 <a href="#" className="hover:text-white transition">Privacy Policy</a>
                 <a href="#" className="hover:text-white transition">Terms of Service</a>
-                <a href="#" className="hover:text-white transition">Contact</a>
               </div>
-              <p className="text-gray-500 text-sm mt-6 md:mt-0">© 2024 LexGuard AI. All rights reserved.</p>
+              <p className="text-gray-500 text-sm mt-6 md:mt-0">© 2026 LexGuard AI. All rights reserved.</p>
             </div>
           </div>
         </footer>
