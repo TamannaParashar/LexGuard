@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import shutil
@@ -7,6 +10,8 @@ import torch
 import pdfplumber
 from docx import Document
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from datasets import load_dataset
+import google.generativeai as genai
 
 # ==================================================
 # APP INITIALIZATION
@@ -31,20 +36,22 @@ MODEL_PATH = "legalbert_ledgar_model"
 print("Loading trained LEDGAR model...")
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
+legalbert_model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
+legalbert_model.eval()
 
-model.eval()
-
-from datasets import load_dataset
-
+# Load real LEDGAR label names
 ledgar = load_dataset("lex_glue", "ledgar")
-true_label_names = ledgar["train"].features["label"].names
-
-# Get label names directly from model config (NO dataset download)
-label_names = model.config.id2label
+real_label_names = ledgar["train"].features["label"].names
 
 print("Model loaded successfully.")
-print("Total labels:", len(label_names))
+print("Total labels:", len(real_label_names))
+
+# ==================================================
+# GEMINI INITIALIZATION
+# ==================================================
+
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+gemini_model = genai.GenerativeModel("gemini-2.5-flash")
 
 # ==================================================
 # TEXT EXTRACTION
@@ -62,8 +69,7 @@ def extract_text(file_path):
         doc = Document(file_path)
         return "\n".join([para.text for para in doc.paragraphs])
 
-    else:
-        return ""
+    return ""
 
 # ==================================================
 # CLEAN TEXT
@@ -106,11 +112,40 @@ def predict_clause(clause_text):
     )
 
     with torch.no_grad():
-        outputs = model(**inputs)
+        outputs = legalbert_model(**inputs)
         logits = outputs.logits
         predicted_class = torch.argmax(logits, dim=1).item()
 
     return predicted_class
+
+# ==================================================
+# GEMINI RISK ANALYSIS
+# ==================================================
+
+def get_ai_analysis(clause_text, label_name):
+    prompt = f"""
+You are a corporate legal risk analyst.
+
+Clause Type: {label_name}
+
+Analyze this clause:
+
+{clause_text}
+
+Respond strictly in this format:
+
+RISK_LEVEL: high / medium / low
+EXPLANATION: short explanation
+SUGGESTION: improved safer wording
+"""
+
+    response = gemini_model.generate_content(prompt)
+    text = response.text
+
+    risk_match = re.search(r'RISK_LEVEL:\s*(high|medium|low)', text, re.IGNORECASE)
+    risk_level = risk_match.group(1).lower() if risk_match else "medium"
+
+    return risk_level, text
 
 # ==================================================
 # API ENDPOINT
@@ -127,27 +162,29 @@ async def analyze_contract(file: UploadFile = File(...)):
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Extract + Clean
     extracted_text = extract_text(file_path)
     cleaned_text = clean_text(extracted_text)
-
     clauses = split_into_clauses(cleaned_text)
 
     results = []
 
-    for clause in clauses[:10]:  # Limit for testing
+    for clause in clauses[:5]:
+
         predicted_label_id = predict_clause(clause)
+        label_name = real_label_names[predicted_label_id]
+
+        risk_level, ai_suggestion = get_ai_analysis(clause, label_name)
 
         results.append({
             "clause": clause,
-            "predicted_label_id": predicted_label_id,
-            "predicted_label_name": true_label_names[predicted_label_id]
+            "predicted_label_name": label_name,
+            "risk_level": risk_level,
+            "ai_suggestion": ai_suggestion
         })
 
     return {
         "message": "File processed successfully",
         "filename": file.filename,
         "total_clauses": len(clauses),
-        "clauses_preview": clauses[:5],
         "result": results
     }
