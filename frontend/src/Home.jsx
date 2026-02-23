@@ -111,7 +111,7 @@ export default function Home() {
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center">
                 <Shield className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-white">LexGuard AI</h1>
+              <h1 className="text-2xl font-bold text-white">LexGuard</h1>
             </div>
             <nav className="flex gap-8">
               <a href="#" className="text-gray-400 hover:text-white transition">About</a>
@@ -130,9 +130,6 @@ export default function Home() {
                 Upload your investment agreements and let AI highlight risks, suggest improvements, and identify strong clauses instantly.
               </p>
               <div className="flex gap-4">
-                <button className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-blue-500/50 transition transform hover:scale-105">
-                  Upload Document
-                </button>
                 <button className="px-8 py-4 border border-blue-500/50 text-white font-semibold rounded-lg hover:bg-blue-500/10 transition">
                   Learn More
                 </button>
@@ -144,14 +141,8 @@ export default function Home() {
             <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-32 h-32 bg-gradient-to-br from-blue-400 to-purple-600 rounded-full blur-2xl opacity-60" />
             </div>
-            {/* Image */}
-            <img
-                src="/homePageImg.png"
-                alt="preview"
-                className="absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:opacity-0"
-            />
             {/* Video */}
-            <video src="/homePageVideo.mp4" autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover opacity-0 transition-all duration-500 group-hover:opacity-100"/>
+            <video src="/homePageVideo.mp4" autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:opacity-100"/>
             </div>
           </div>
         </section>
@@ -312,13 +303,9 @@ export default function Home() {
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="flex items-center gap-2 mb-6 md:mb-0">
                 <Shield className="w-5 h-5 text-blue-400" />
-                <span className="text-white font-semibold">LexGuard AI</span>
+                <span className="text-white font-semibold">LexGuard</span>
               </div>
-              <div className="flex gap-8 text-gray-400 text-sm">
-                <a href="#" className="hover:text-white transition">Privacy Policy</a>
-                <a href="#" className="hover:text-white transition">Terms of Service</a>
-              </div>
-              <p className="text-gray-500 text-sm mt-6 md:mt-0">© 2026 LexGuard AI. All rights reserved.</p>
+              <p className="text-gray-500 text-sm mt-6 md:mt-0">© 2026 LexGuard. All rights reserved.</p>
             </div>
           </div>
         </footer>
