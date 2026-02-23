@@ -1,11 +1,14 @@
 import React, { useRef, useState } from 'react'
 import { Upload, Shield, Zap, CheckCircle, ArrowRight } from 'lucide-react'
+import {useNavigate} from 'react-router-dom'
 
 export default function Home() {
   const fileInputRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [loading, setLoading] = useState(false)
+
+  const navigate = useNavigate();
 
   const handleDragOver = (e) => {
     e.preventDefault()
@@ -55,6 +58,7 @@ export default function Home() {
 
     const data = await response.json()
     console.log("Backend response:", data)
+    navigate('/result',{state:data})
 
   } catch (error) {
     console.error("Upload failed:", error)
