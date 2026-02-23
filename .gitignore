@@ -27,3 +27,6 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
+.env
+legalbert_ledgar_model/
+uploads/
