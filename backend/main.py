@@ -122,30 +122,60 @@ def predict_clause(clause_text):
 # GEMINI RISK ANALYSIS
 # ==================================================
 
+import json
+
 def get_ai_analysis(clause_text, label_name):
+
     prompt = f"""
-You are a corporate legal risk analyst.
+You are a senior corporate legal risk analyst.
 
 Clause Type: {label_name}
 
-Analyze this clause:
+Analyze the following contract clause carefully:
 
-{clause_text}
+\"\"\"{clause_text}\"\"\"
 
-Respond strictly in this format:
+Respond ONLY in valid JSON with this exact structure:
 
-RISK_LEVEL: high / medium / low
-EXPLANATION: short explanation
-SUGGESTION: improved safer wording
+{{
+  "risk_level": "high | medium | low",
+  "summary": "2 sentence executive summary of the risk.",
+  "why_risky": [
+    "bullet point 1",
+    "bullet point 2",
+    "bullet point 3"
+  ],
+  "business_impact": "Explain in plain English what this means for the company.",
+  "recommended_revision": "Provide safer improved wording of the clause."
+}}
+
+Do not include markdown.
+Do not include explanation outside JSON.
+Return JSON only.
 """
 
-    response = gemini_model.generate_content(prompt)
-    text = response.text
+    try:
+        response = gemini_model.generate_content(prompt)
+        text = response.text.strip()
 
-    risk_match = re.search(r'RISK_LEVEL:\s*(high|medium|low)', text, re.IGNORECASE)
-    risk_level = risk_match.group(1).lower() if risk_match else "medium"
+        # Extract JSON safely
+        json_start = text.find("{")
+        json_end = text.rfind("}") + 1
+        json_text = text[json_start:json_end]
 
-    return risk_level, text
+        parsed = json.loads(json_text)
+
+        return parsed
+
+    except Exception as e:
+        print("AI parsing error:", e)
+        return {
+            "risk_level": "medium",
+            "summary": "Unable to analyze clause.",
+            "why_risky": ["AI response parsing failed."],
+            "business_impact": "Manual review recommended.",
+            "recommended_revision": "Please consult legal counsel."
+        }
 
 # ==================================================
 # API ENDPOINT
@@ -173,14 +203,14 @@ async def analyze_contract(file: UploadFile = File(...)):
         predicted_label_id = predict_clause(clause)
         label_name = real_label_names[predicted_label_id]
 
-        risk_level, ai_suggestion = get_ai_analysis(clause, label_name)
+        analysis = get_ai_analysis(clause, label_name)
 
         results.append({
-            "clause": clause,
-            "predicted_label_name": label_name,
-            "risk_level": risk_level,
-            "ai_suggestion": ai_suggestion
-        })
+        "clause": clause,
+        "predicted_label_name": label_name,
+        "risk_level": analysis["risk_level"],
+        "analysis": analysis
+    })
 
     return {
         "message": "File processed successfully",

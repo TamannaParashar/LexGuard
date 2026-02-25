@@ -115,22 +115,58 @@ export default function Result() {
                 </div>
 
                 {/* Suggestion Section */}
-                <div>
-                  <p className="text-xs font-semibold text-green-400 uppercase tracking-wide mb-2">
-                    💡 AI Suggestion
-                  </p>
-                  <p className="text-gray-200 text-sm leading-relaxed">
-                    {isSuggestionExpanded ? suggestionText : suggestionTruncated}
-                  </p>
-                  {suggestionText.length > 150 && (
-                    <button
-                      onClick={() => toggleExpand(index, "suggestion")}
-                      className="text-blue-400 hover:text-blue-300 text-xs font-medium mt-2 transition"
-                    >
-                      {isSuggestionExpanded ? "Show less" : "Read more..."}
-                    </button>
-                  )}
-                </div>
+                {/* AI Analysis Section */}
+<div className="space-y-4">
+  <p className="text-xs font-semibold text-green-400 uppercase tracking-wide">
+    AI Risk Analysis
+  </p>
+
+  <div className="bg-white/5 rounded-lg p-5 space-y-5 border border-white/10">
+
+    {/* Summary */}
+    <div>
+      <p className="text-sm font-semibold text-white mb-1">
+        📌 Executive Summary
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        {item.analysis?.summary}
+      </p>
+    </div>
+
+    {/* Why Risky */}
+    <div>
+      <p className="text-sm font-semibold text-white mb-1">
+        🚨 Why This Is Risky
+      </p>
+      <ul className="list-disc list-inside text-sm text-gray-300 space-y-1">
+        {item.analysis?.why_risky?.map((point, i) => (
+          <li key={i}>{point}</li>
+        ))}
+      </ul>
+    </div>
+
+    {/* Business Impact */}
+    <div>
+      <p className="text-sm font-semibold text-white mb-1">
+        💼 Business Impact
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        {item.analysis?.business_impact}
+      </p>
+    </div>
+
+    {/* Recommendation */}
+    <div className="bg-green-500/5 border border-green-500/30 rounded-md p-4">
+      <p className="text-sm font-semibold text-green-400 mb-1">
+        ✅ Recommended Revision
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+        {item.analysis?.recommended_revision}
+      </p>
+    </div>
+
+  </div>
+</div>
               </div>
             )
           })
