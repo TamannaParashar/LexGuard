@@ -12,6 +12,10 @@ from docx import Document
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from datasets import load_dataset
 import google.generativeai as genai
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+from required_clause_definitions import REQUIRED_CLAUSE_DEFINITIONS
+import json
 
 # ==================================================
 # APP INITIALIZATION
@@ -28,22 +32,35 @@ app.add_middleware(
 )
 
 # ==================================================
-# LOAD TRAINED LEDGAR MODEL
+# LOAD MODELS
 # ==================================================
 
 MODEL_PATH = "legalbert_ledgar_model"
 
-print("Loading trained LEDGAR model...")
+print("Loading embedding model...")
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+print("Embedding model loaded.")
 
+print("Precomputing required clause embeddings...")
+PRECOMPUTED_DEFINITION_EMBEDDINGS = {}
+
+for contract_type, clauses_dict in REQUIRED_CLAUSE_DEFINITIONS.items():
+    PRECOMPUTED_DEFINITION_EMBEDDINGS[contract_type] = {
+        name: embedding_model.encode(text)
+        for name, text in clauses_dict.items()
+    }
+
+print("Definition embeddings ready.")
+
+print("Loading LegalBERT model...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
 legalbert_model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
 legalbert_model.eval()
 
-# Load real LEDGAR label names
 ledgar = load_dataset("lex_glue", "ledgar")
 real_label_names = ledgar["train"].features["label"].names
 
-print("Model loaded successfully.")
+print("LegalBERT loaded successfully.")
 print("Total labels:", len(real_label_names))
 
 # ==================================================
@@ -122,8 +139,6 @@ def predict_clause(clause_text):
 # GEMINI RISK ANALYSIS
 # ==================================================
 
-import json
-
 def get_ai_analysis(clause_text, label_name):
 
     prompt = f"""
@@ -149,8 +164,6 @@ Respond ONLY in valid JSON with this exact structure:
   "recommended_revision": "Provide safer improved wording of the clause."
 }}
 
-Do not include markdown.
-Do not include explanation outside JSON.
 Return JSON only.
 """
 
@@ -158,14 +171,11 @@ Return JSON only.
         response = gemini_model.generate_content(prompt)
         text = response.text.strip()
 
-        # Extract JSON safely
         json_start = text.find("{")
         json_end = text.rfind("}") + 1
         json_text = text[json_start:json_end]
 
-        parsed = json.loads(json_text)
-
-        return parsed
+        return json.loads(json_text)
 
     except Exception as e:
         print("AI parsing error:", e)
@@ -176,6 +186,48 @@ Return JSON only.
             "business_impact": "Manual review recommended.",
             "recommended_revision": "Please consult legal counsel."
         }
+
+# ==================================================
+# SEMANTIC COVERAGE
+# ==================================================
+
+SIMILARITY_THRESHOLD = 0.65
+
+def calculate_semantic_coverage(clauses, contract_type):
+
+    required_clauses = PRECOMPUTED_DEFINITION_EMBEDDINGS.get(contract_type, {})
+
+    if not required_clauses:
+        return 0, [], []
+
+    if not clauses:
+        return 0, [], list(required_clauses.keys())
+
+    covered_clauses = []
+    missing_clauses = []
+
+    clause_embeddings = embedding_model.encode(clauses)
+
+    for clause_name, definition_embedding in required_clauses.items():
+
+        max_similarity = 0
+
+        for clause_embedding in clause_embeddings:
+            similarity = cosine_similarity(
+                [definition_embedding],
+                [clause_embedding]
+            )[0][0]
+
+            max_similarity = max(max_similarity, similarity)
+
+        if max_similarity >= SIMILARITY_THRESHOLD:
+            covered_clauses.append(clause_name)
+        else:
+            missing_clauses.append(clause_name)
+
+    coverage_score = (len(covered_clauses) / len(required_clauses)) * 100
+
+    return round(coverage_score, 2), covered_clauses, missing_clauses
 
 # ==================================================
 # API ENDPOINT
@@ -196,25 +248,34 @@ async def analyze_contract(file: UploadFile = File(...)):
     cleaned_text = clean_text(extracted_text)
     clauses = split_into_clauses(cleaned_text)
 
+    contract_type = "SaaS Agreement"
     results = []
 
-    for clause in clauses[:5]:
-
+    for clause in clauses[:10]:
         predicted_label_id = predict_clause(clause)
-        label_name = real_label_names[predicted_label_id]
+        raw_label_name = real_label_names[predicted_label_id]
 
-        analysis = get_ai_analysis(clause, label_name)
+        analysis = get_ai_analysis(clause, raw_label_name)
 
         results.append({
-        "clause": clause,
-        "predicted_label_name": label_name,
-        "risk_level": analysis["risk_level"],
-        "analysis": analysis
-    })
+            "clause": clause,
+            "predicted_label_name": raw_label_name,
+            "risk_level": analysis["risk_level"],
+            "analysis": analysis
+        })
+
+    coverage_score, covered_clauses, missing_clauses = calculate_semantic_coverage(
+        clauses,
+        contract_type
+    )
 
     return {
         "message": "File processed successfully",
         "filename": file.filename,
+        "contract_type": contract_type,
         "total_clauses": len(clauses),
+        "coverage_score": coverage_score,
+        "covered_clauses": covered_clauses,
+        "missing_clauses": missing_clauses,
         "result": results
     }

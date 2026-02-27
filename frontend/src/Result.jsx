@@ -44,7 +44,67 @@ export default function Result() {
         <h1 className="text-4xl md:text-4xl font-bold mb-2">Analysis Results</h1>
         <p className="text-gray-400">Review detected clauses and AI-powered suggestions</p>
       </div>
+      {/* Contract Overview */}
+      <div className="mb-10 bg-white/5 border border-white/10 rounded-xl p-6">
+        <h2 className="text-xl font-semibold text-white mb-4">
+          📄 Contract Overview
+        </h2>
 
+        <div className="grid md:grid-cols-3 gap-6">
+          
+          {/* Contract Type */}
+          <div>
+            <p className="text-sm text-gray-400">Contract Type</p>
+            <p className="text-lg font-semibold text-white">
+              {state?.contract_type}
+            </p>
+          </div>
+
+          {/* Coverage Score */}
+          <div>
+            <p className="text-sm text-gray-400">Clause Coverage</p>
+            <p className="text-lg font-semibold text-blue-400">
+              {state?.coverage_score}%
+            </p>
+          </div>
+
+          {/* Total Clauses */}
+          <div>
+            <p className="text-sm text-gray-400">Total Clauses Detected</p>
+            <p className="text-lg font-semibold text-white">
+              {state?.total_clauses}
+            </p>
+          </div>
+        </div>
+      </div>
+      {/* Coverage Progress Bar */}
+        <div className="mb-10">
+          <div className="w-full bg-white/10 rounded-full h-3">
+            <div
+              className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all"
+              style={{ width: `${state?.coverage_score || 0}%` }}
+            />
+          </div>
+        </div>
+        {/* Missing Clauses */}
+                {state?.missing_clauses?.length > 0 && (
+                  <div className="mb-10 bg-red-500/5 border border-red-500/30 rounded-xl p-6">
+                    <h2 className="text-lg font-semibold text-red-400 mb-4">
+                      ⚠️ Missing Important Clauses
+                    </h2>
+
+                    <ul className="list-disc list-inside text-sm text-gray-300 space-y-2">
+                      {state.missing_clauses.map((clause, index) => (
+                        <li key={index}>{clause}</li>
+                      ))}
+                    </ul>
+
+                    <p className="text-xs text-gray-400 mt-4">
+                      These clauses are typically expected in a {state.contract_type}.
+                      Their absence may expose the business to risk.
+                    </p>
+                  </div>
+                )}
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
         <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-5 hover:bg-red-500/15 transition">
@@ -70,14 +130,9 @@ export default function Result() {
         ) : (
           results.map((item, index) => {
             const clauseKey = `${index}-clause`
-            const suggestionKey = `${index}-suggestion`
             const isClauseExpanded = expandedItems[clauseKey]
-            const isSuggestionExpanded = expandedItems[suggestionKey]
-            
             const clauseText = item.clause || ""
-            const suggestionText = item.ai_suggestion || ""
             const clauseTruncated = truncateText(clauseText)
-            const suggestionTruncated = truncateText(suggestionText)
 
             return (
               <div
@@ -95,7 +150,6 @@ export default function Result() {
                     {item.risk_level.charAt(0).toUpperCase() + item.risk_level.slice(1)} Risk
                   </span>
                 </div>
-
                 {/* Clause Section */}
                 <div className="mb-4 pb-4 border-b border-white/10">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
@@ -114,59 +168,58 @@ export default function Result() {
                   )}
                 </div>
 
-                {/* Suggestion Section */}
                 {/* AI Analysis Section */}
-<div className="space-y-4">
-  <p className="text-xs font-semibold text-green-400 uppercase tracking-wide">
-    AI Risk Analysis
-  </p>
+                <div className="space-y-4">
+                  <p className="text-xs font-semibold text-green-400 uppercase tracking-wide">
+                    AI Risk Analysis
+                  </p>
 
-  <div className="bg-white/5 rounded-lg p-5 space-y-5 border border-white/10">
+                  <div className="bg-white/5 rounded-lg p-5 space-y-5 border border-white/10">
 
-    {/* Summary */}
-    <div>
-      <p className="text-sm font-semibold text-white mb-1">
-        📌 Executive Summary
-      </p>
-      <p className="text-sm text-gray-300 leading-relaxed">
-        {item.analysis?.summary}
-      </p>
-    </div>
+                    {/* Summary */}
+                    <div>
+                      <p className="text-sm font-semibold text-white mb-1">
+                        📌 Executive Summary
+                      </p>
+                      <p className="text-sm text-gray-300 leading-relaxed">
+                        {item.analysis?.summary}
+                      </p>
+                    </div>
 
-    {/* Why Risky */}
-    <div>
-      <p className="text-sm font-semibold text-white mb-1">
-        🚨 Why This Is Risky
-      </p>
-      <ul className="list-disc list-inside text-sm text-gray-300 space-y-1">
-        {item.analysis?.why_risky?.map((point, i) => (
-          <li key={i}>{point}</li>
-        ))}
-      </ul>
-    </div>
+                    {/* Why Risky */}
+                    <div>
+                      <p className="text-sm font-semibold text-white mb-1">
+                        🚨 Why This Is Risky
+                      </p>
+                      <ul className="list-disc list-inside text-sm text-gray-300 space-y-1">
+                        {item.analysis?.why_risky?.map((point, i) => (
+                          <li key={i}>{point}</li>
+                        ))}
+                      </ul>
+                    </div>
 
-    {/* Business Impact */}
-    <div>
-      <p className="text-sm font-semibold text-white mb-1">
-        💼 Business Impact
-      </p>
-      <p className="text-sm text-gray-300 leading-relaxed">
-        {item.analysis?.business_impact}
-      </p>
-    </div>
+                    {/* Business Impact */}
+                    <div>
+                      <p className="text-sm font-semibold text-white mb-1">
+                        💼 Business Impact
+                      </p>
+                      <p className="text-sm text-gray-300 leading-relaxed">
+                        {item.analysis?.business_impact}
+                      </p>
+                    </div>
 
-    {/* Recommendation */}
-    <div className="bg-green-500/5 border border-green-500/30 rounded-md p-4">
-      <p className="text-sm font-semibold text-green-400 mb-1">
-        ✅ Recommended Revision
-      </p>
-      <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
-        {item.analysis?.recommended_revision}
-      </p>
-    </div>
+                    {/* Recommendation */}
+                    <div className="bg-green-500/5 border border-green-500/30 rounded-md p-4">
+                      <p className="text-sm font-semibold text-green-400 mb-1">
+                        ✅ Recommended Revision
+                      </p>
+                      <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+                        {item.analysis?.recommended_revision}
+                      </p>
+                    </div>
 
-  </div>
-</div>
+                  </div>
+                </div>
               </div>
             )
           })
