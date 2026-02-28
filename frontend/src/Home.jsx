@@ -7,6 +7,7 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [contractType, setContractType] = useState("SaaS Agreement")
 
   const navigate = useNavigate();
 
@@ -46,7 +47,8 @@ export default function Home() {
   }
 
   const formData = new FormData()
-  formData.append("file", selectedFile)
+  formData.append("file", selectedFile);
+  formData.append("contract_type",contractType);
 
   try {
     setLoading(true)
@@ -180,6 +182,16 @@ export default function Home() {
               Select File
             </button>
             <br />
+            <select
+              value={contractType}
+              onChange={(e) => setContractType(e.target.value)}
+              className="mb-6 px-4 py-2 mr-6 bg-black border border-blue-500/50 text-white rounded-lg"
+            >
+              <option value="SaaS Agreement">SaaS Agreement</option>
+              <option value="NDA">NDA</option>
+              <option value="Employment Agreement">Employment Agreement</option>
+              <option value="Vendor Agreement">Vendor Agreement</option>
+            </select>
             <button className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-blue-500/50 transition" onClick={handleUpload}>
               {loading?"Analyzing...":"Analyze Contract"}
             </button>

@@ -10,5 +10,33 @@ Now your backend is ready for:
 👉 Strong clause identification
 
 fine tune:
-
 So your model = LegalBERT + LEDGAR fine-tuning
+
+Your pipeline becomes:
+
+Upload
+
+Extract text
+
+Split clauses
+
+LegalBERT → classify
+
+Collect clause types
+
+Compare against required structure
+
+Detect missing
+
+Gemini → analyze risks
+
+UI → show coverage + risks
+
+To convert to zip: PS C:\Users\Tamz Laptop\contractAnalyzer> tar -a -c -f ..\contractAnalyzer.zip `
+>> --exclude=node_modules `
+>> --exclude=venv `
+>> --exclude=.venv `
+>> --exclude=__pycache__ `
+>> --exclude=build `
+>> --exclude=dist `
+>> --exclude=.git *

@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 import shutil
 import os
@@ -191,7 +191,7 @@ Return JSON only.
 # SEMANTIC COVERAGE
 # ==================================================
 
-SIMILARITY_THRESHOLD = 0.65
+SIMILARITY_THRESHOLD = 0.60
 
 def calculate_semantic_coverage(clauses, contract_type):
 
@@ -234,7 +234,7 @@ def calculate_semantic_coverage(clauses, contract_type):
 # ==================================================
 
 @app.post("/api/analyze")
-async def analyze_contract(file: UploadFile = File(...)):
+async def analyze_contract(file: UploadFile = File(...),contract_type: str = Form(...)):
 
     upload_folder = "uploads"
     os.makedirs(upload_folder, exist_ok=True)
@@ -247,8 +247,6 @@ async def analyze_contract(file: UploadFile = File(...)):
     extracted_text = extract_text(file_path)
     cleaned_text = clean_text(extracted_text)
     clauses = split_into_clauses(cleaned_text)
-
-    contract_type = "SaaS Agreement"
     results = []
 
     for clause in clauses[:10]:
