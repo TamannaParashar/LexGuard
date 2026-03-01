@@ -142,30 +142,47 @@ def predict_clause(clause_text):
 def get_ai_analysis(clause_text, label_name):
 
     prompt = f"""
-You are a senior corporate legal risk analyst.
+    You are a legal UX writer for a modern SaaS contract analysis dashboard.
 
-Clause Type: {label_name}
+    Do NOT write like a lawyer.
+    Write for business owners who are not legal experts.
+    Keep language simple, clear, and short.
 
-Analyze the following contract clause carefully:
+    Clause Type: {label_name}
 
-\"\"\"{clause_text}\"\"\"
+    Analyze this clause:
 
-Respond ONLY in valid JSON with this exact structure:
+    \"\"\"{clause_text}\"\"\"
 
-{{
-  "risk_level": "high | medium | low",
-  "summary": "2 sentence executive summary of the risk.",
-  "why_risky": [
-    "bullet point 1",
-    "bullet point 2",
-    "bullet point 3"
-  ],
-  "business_impact": "Explain in plain English what this means for the company.",
-  "recommended_revision": "Provide safer improved wording of the clause."
-}}
+    Respond ONLY in valid JSON using this EXACT structure:
 
-Return JSON only.
-"""
+    {{
+    "risk_level": "high | medium | low",
+
+    "plain_issue_title": "Short 5-8 word headline describing the issue",
+
+    "plain_issue_explanation": "Explain the problem in very simple English. Maximum 3 short sentences.",
+
+    "why_it_matters": "Explain in simple business terms what could happen.",
+
+    "quick_risk_points": [
+        "Very short bullet (max 10 words)",
+        "Very short bullet (max 10 words)",
+        "Very short bullet (max 10 words)"
+    ],
+
+    "recommended_fix_summary": "One simple sentence explaining what should change.",
+
+    "improved_clause_text": "Provide a safer rewritten version of the clause."
+    }}
+
+    Rules:
+    - No legal jargon.
+    - No long paragraphs.
+    - Keep sentences short.
+    - This will be shown in small UI cards.
+    - Return JSON only.
+    """
 
     try:
         response = gemini_model.generate_content(prompt)
@@ -180,12 +197,14 @@ Return JSON only.
     except Exception as e:
         print("AI parsing error:", e)
         return {
-            "risk_level": "medium",
-            "summary": "Unable to analyze clause.",
-            "why_risky": ["AI response parsing failed."],
-            "business_impact": "Manual review recommended.",
-            "recommended_revision": "Please consult legal counsel."
-        }
+        "risk_level": "medium",
+        "plain_issue_title": "Analysis unavailable",
+        "plain_issue_explanation": "We could not analyze this clause.",
+        "why_it_matters": "Manual legal review is recommended.",
+        "quick_risk_points": ["AI parsing failed."],
+        "recommended_fix_summary": "Please review manually.",
+        "improved_clause_text": "Consult legal counsel."
+    }
 
 # ==================================================
 # SEMANTIC COVERAGE
