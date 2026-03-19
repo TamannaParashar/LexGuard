@@ -95,6 +95,7 @@ export default function Result() {
   const results = state?.result || []
   const [expandedItems, setExpandedItems] = useState({})
   const [expandedSuggestion, setExpandedSuggestion] = useState(null)
+  const [filterRisk, setFilterRisk] = useState("all")
 
   const toggleExpand = (index) => {
     setExpandedItems(prev => ({
@@ -107,6 +108,14 @@ export default function Result() {
     if (!text) return ""
     return text.length > limit ? text.substring(0, limit) + "..." : text
   }
+
+  const resultsWithStableId = results.map((r, i) => ({ ...r, originalIndex: i }))
+  
+  const riskWeights = { high: 3, medium: 2, low: 1 }
+
+  const processedResults = resultsWithStableId
+    .filter(r => filterRisk === "all" || r.risk_level === filterRisk)
+    .sort((a, b) => (riskWeights[b.risk_level] || 0) - (riskWeights[a.risk_level] || 0))
 
   const highRiskCount = results.filter(r => r.risk_level === "high").length
   const mediumRiskCount = results.filter(r => r.risk_level === "medium").length
@@ -163,7 +172,10 @@ export default function Result() {
         {/* Risk Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {/* High Risk */}
-          <div className="bg-slate-800/30 border border-rose-500/20 rounded-xl p-6 hover:border-rose-500/40 transition hover:bg-slate-800/50">
+          <div 
+            onClick={() => setFilterRisk(filterRisk === 'high' ? 'all' : 'high')}
+            className={`cursor-pointer border rounded-xl p-6 transition ${filterRisk === 'high' ? 'bg-slate-800/60 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]' : 'bg-slate-800/30 border-rose-500/20 hover:border-rose-500/40 hover:bg-slate-800/50'}`}
+          >
             <div className="flex items-center gap-3 mb-3">
               <div className="w-3 h-3 bg-rose-500 rounded-full" />
               <span className="text-xs font-semibold text-rose-400 uppercase">High Risk</span>
@@ -172,7 +184,10 @@ export default function Result() {
           </div>
 
           {/* Medium Risk */}
-          <div className="bg-slate-800/30 border border-amber-500/20 rounded-xl p-6 hover:border-amber-500/40 transition hover:bg-slate-800/50">
+          <div 
+            onClick={() => setFilterRisk(filterRisk === 'medium' ? 'all' : 'medium')}
+            className={`cursor-pointer border rounded-xl p-6 transition ${filterRisk === 'medium' ? 'bg-slate-800/60 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-slate-800/30 border-amber-500/20 hover:border-amber-500/40 hover:bg-slate-800/50'}`}
+          >
             <div className="flex items-center gap-3 mb-3">
               <div className="w-3 h-3 bg-amber-500 rounded-full" />
               <span className="text-xs font-semibold text-amber-400 uppercase">Medium Risk</span>
@@ -181,7 +196,10 @@ export default function Result() {
           </div>
 
           {/* Low Risk */}
-          <div className="bg-slate-800/30 border border-emerald-500/20 rounded-xl p-6 hover:border-emerald-500/40 transition hover:bg-slate-800/50">
+          <div 
+            onClick={() => setFilterRisk(filterRisk === 'low' ? 'all' : 'low')}
+            className={`cursor-pointer border rounded-xl p-6 transition ${filterRisk === 'low' ? 'bg-slate-800/60 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-slate-800/30 border-emerald-500/20 hover:border-emerald-500/40 hover:bg-slate-800/50'}`}
+          >
             <div className="flex items-center gap-3 mb-3">
               <div className="w-3 h-3 bg-emerald-500 rounded-full" />
               <span className="text-xs font-semibold text-emerald-400 uppercase">Protective</span>
@@ -214,18 +232,19 @@ export default function Result() {
 
         {/* Results Section */}
         <div className="space-y-6">
-          {results.length === 0 ? (
+          {processedResults.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-slate-400 text-lg">No results found</p>
+              <p className="text-slate-400 text-lg">No results found for this filter.</p>
             </div>
           ) : (
-            results.map((item, index) => {
-              const isExpanded = expandedItems[index]
+            processedResults.map((item) => {
+              const rootIndex = item.originalIndex
+              const isExpanded = expandedItems[rootIndex]
               const clauseText = item.clause || ""
               const clauseTruncated = truncateText(clauseText)
 
               return (
-                <div key={index} className="group">
+                <div key={rootIndex} className="group">
                   {/* Clause Card */}
                   <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700 rounded-xl p-6 hover:border-slate-600 transition">
                     {/* Card Header */}
@@ -246,7 +265,7 @@ export default function Result() {
                       </p>
                       {clauseText.length > 150 && (
                         <button
-                          onClick={() => toggleExpand(index)}
+                          onClick={() => toggleExpand(rootIndex)}
                           className="text-blue-400 hover:text-blue-300 text-xs font-medium mt-3 transition"
                         >
                           {isExpanded ? "Show less" : "Read more"}
@@ -264,7 +283,7 @@ export default function Result() {
 
                     {/* Action Button */}
                     <button
-                      onClick={() => setExpandedSuggestion(index)}
+                      onClick={() => setExpandedSuggestion(rootIndex)}
                       className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-medium rounded-lg transition transform hover:scale-105 active:scale-95"
                     >
                       View Full Analysis
@@ -274,7 +293,7 @@ export default function Result() {
                   {/* Suggestion Panel */}
                   <SuggestionPanel
                     item={item}
-                    isOpen={expandedSuggestion === index}
+                    isOpen={expandedSuggestion === rootIndex}
                     onClose={() => setExpandedSuggestion(null)}
                   />
                 </div>
