@@ -289,97 +289,103 @@ async def analyze_contract(file: UploadFile = File(...), contract_type: str = Fo
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    extracted_text = extract_text(file_path)
-    cleaned_text = clean_text(extracted_text)
-    clauses = split_into_clauses(cleaned_text)
-    
-    coverage_score, covered_clauses, missing_clauses = calculate_semantic_coverage(
-        clauses, contract_type
-    )
+    try:
+        extracted_text = extract_text(file_path)
+        cleaned_text = clean_text(extracted_text)
+        clauses = split_into_clauses(cleaned_text)
 
-    batch_payload = []
-    results = []
+        coverage_score, covered_clauses, missing_clauses = calculate_semantic_coverage(
+            clauses, contract_type
+        )
 
-    # Classify all clauses and determine which ones need Gemini
-    for i, clause in enumerate(clauses):
-        predicted_label_id = predict_clause(clause)
-        raw_label_name = real_label_names[predicted_label_id]
+        batch_payload = []
+        results = []
 
-        # Only run expensive Gemini API on relevant/high-risk clauses
-        is_high_risk = any(hr in raw_label_name for hr in HIGH_RISK_LABELS)
+        # Classify all clauses and determine which ones need Gemini
+        for i, clause in enumerate(clauses):
+            predicted_label_id = predict_clause(clause)
+            raw_label_name = real_label_names[predicted_label_id]
 
-        if is_high_risk:
-            batch_payload.append({
-                "id": i,
-                "text": clause,
-                "label": raw_label_name
+            # Only run expensive Gemini API on relevant/high-risk clauses
+            is_high_risk = any(hr in raw_label_name for hr in HIGH_RISK_LABELS)
+
+            if is_high_risk:
+                batch_payload.append({
+                    "id": i,
+                    "text": clause,
+                    "label": raw_label_name
+                })
+            else:
+                # Generate standard analysis locally
+                results.append({
+                    "id": i,
+                    "clause": clause,
+                    "predicted_label_name": raw_label_name,
+                    "risk_level": "low",
+                    "analysis": {
+                        "risk_level": "low",
+                        "plain_issue_title": "Standard Clause",
+                        "plain_issue_explanation": f"This appears to be a standard {raw_label_name} clause.",
+                        "why_it_matters": "Routine operational term. Low inherent risk.",
+                        "quick_risk_points": ["Standard terms"],
+                        "recommended_fix_summary": "No changes needed.",
+                        "improved_clause_text": clause
+                    }
+                })
+
+        # Execute Gemini API in batches
+        ai_analyses_map = {}
+        batch_size = 10
+        chunks = [batch_payload[i:i + batch_size] for i in range(0, len(batch_payload), batch_size)]
+
+        tasks = [get_ai_analysis_batch(chunk) for chunk in chunks]
+        batch_results = await asyncio.gather(*tasks)
+
+        # Flatten batch responses and map by id
+        for batch_res in batch_results:
+            for res in batch_res:
+                ai_analyses_map[res["id"]] = res
+
+        # Combine AI results with the pre-filtered results
+        for item in batch_payload:
+            i = item["id"]
+            ai_data = ai_analyses_map.get(i, {
+                "risk_level": "medium",
+                "plain_issue_title": "Analysis unavailable",
+                "plain_issue_explanation": "AI failed.",
+                "why_it_matters": "Review manually.",
+                "quick_risk_points": [],
+                "recommended_fix_summary": "Review manually.",
+                "improved_clause_text": item["text"]
             })
-        else:
-            # Generate standard analysis locally
+
             results.append({
                 "id": i,
-                "clause": clause,
-                "predicted_label_name": raw_label_name,
-                "risk_level": "low",
-                "analysis": {
-                    "risk_level": "low",
-                    "plain_issue_title": "Standard Clause",
-                    "plain_issue_explanation": f"This appears to be a standard {raw_label_name} clause.",
-                    "why_it_matters": "Routine operational term. Low inherent risk.",
-                    "quick_risk_points": ["Standard terms"],
-                    "recommended_fix_summary": "No changes needed.",
-                    "improved_clause_text": clause
-                }
+                "clause": item["text"],
+                "predicted_label_name": item["label"],
+                "risk_level": ai_data.get("risk_level", "medium"),
+                "analysis": ai_data
             })
 
-    # Execute Gemini API in batches
-    ai_analyses_map = {}
-    batch_size = 10
-    chunks = [batch_payload[i:i + batch_size] for i in range(0, len(batch_payload), batch_size)]
-    
-    tasks = [get_ai_analysis_batch(chunk) for chunk in chunks]
-    batch_results = await asyncio.gather(*tasks)
-    
-    # Flatten batch responses and map by id
-    for batch_res in batch_results:
-        for res in batch_res:
-            ai_analyses_map[res["id"]] = res
+        # Sort results to restore chronological document order
+        results.sort(key=lambda x: x["id"])
 
-    # Combine AI results with the pre-filtered results
-    for item in batch_payload:
-        i = item["id"]
-        ai_data = ai_analyses_map.get(i, {
-            "risk_level": "medium",
-            "plain_issue_title": "Analysis unavailable",
-            "plain_issue_explanation": "AI failed.",
-            "why_it_matters": "Review manually.",
-            "quick_risk_points": [],
-            "recommended_fix_summary": "Review manually.",
-            "improved_clause_text": item["text"]
-        })
-        
-        results.append({
-            "id": i,
-            "clause": item["text"],
-            "predicted_label_name": item["label"],
-            "risk_level": ai_data.get("risk_level", "medium"),
-            "analysis": ai_data
-        })
+        # Clean up 'id' before returning as it was internal
+        for res in results:
+            del res["id"]
 
-    # Sort results to restore chronological document order
-    results.sort(key=lambda x: x["id"])
+        return {
+            "message": "File processed successfully",
+            "filename": file.filename,
+            "contract_type": contract_type,
+            "total_clauses": len(clauses),
+            "coverage_score": coverage_score,
+            "covered_clauses": covered_clauses,
+            "missing_clauses": missing_clauses,
+            "result": results
+        }
 
-    # Clean up 'id' before returning as it was internal
-    for res in results:
-        del res["id"]
-
-    return {
-        "message": "File processed successfully",
-        "filename": file.filename,
-        "contract_type": contract_type,
-        "total_clauses": len(clauses),
-        "coverage_score": coverage_score,
-        "covered_clauses": covered_clauses,
-        "missing_clauses": missing_clauses,
-        "result": results
-    }
+    finally:
+        # Always clean up the uploaded file after processing
+        if os.path.exists(file_path):
+            os.remove(file_path)
