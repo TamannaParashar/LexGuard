@@ -1,7 +1,7 @@
 'use client'
 
 import { useLocation } from "react-router-dom"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 
 const RiskIndicator = ({ risk }) => {
   const configs = {
@@ -19,35 +19,24 @@ const RiskIndicator = ({ risk }) => {
 }
 
 const SuggestionPanel = ({ item, isOpen, onClose }) => {
+  const [copiedField, setCopiedField] = useState(null)
+
   if (!isOpen) return null
 
+  const copyToClipboard = (text, field) => {
+    navigator.clipboard.writeText(text || '').then(() => {
+      setCopiedField(field)
+      setTimeout(() => setCopiedField(null), 2000)
+    })
+  }
+
   const suggestions = [
-  {
-    title: "Issue Summary",
-    icon: "📋",
-    content: item.analysis?.plain_issue_explanation,
-  },
-  {
-    title: "Why It Matters",
-    icon: "⚡",
-    content: item.analysis?.why_it_matters,
-  },
-  {
-    title: "Key Risk Points",
-    icon: "🚨",
-    content: item.analysis?.quick_risk_points?.join(" • "),
-  },
-  {
-    title: "Recommended Fix",
-    icon: "💡",
-    content: item.analysis?.recommended_fix_summary,
-  },
-  {
-    title: "Safer Clause Version",
-    icon: "✨",
-    content: item.analysis?.improved_clause_text,
-  },
-]
+    { title: "Issue Summary",       icon: "📋", content: item.analysis?.plain_issue_explanation },
+    { title: "Why It Matters",      icon: "⚡", content: item.analysis?.why_it_matters },
+    { title: "Key Risk Points",     icon: "🚨", content: item.analysis?.quick_risk_points?.join(" • ") },
+    { title: "Recommended Fix",     icon: "💡", content: item.analysis?.recommended_fix_summary },
+    { title: "Safer Clause Version",icon: "✨", content: item.analysis?.improved_clause_text, copyable: true },
+  ]
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
@@ -55,10 +44,7 @@ const SuggestionPanel = ({ item, isOpen, onClose }) => {
         {/* Header */}
         <div className="sticky top-0 bg-slate-900 border-b border-slate-700 px-8 py-6 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-white">Detailed Analysis</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-800 rounded-lg transition text-gray-400 hover:text-white"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg transition text-gray-400 hover:text-white">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -74,11 +60,25 @@ const SuggestionPanel = ({ item, isOpen, onClose }) => {
                 className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 hover:border-slate-600 transition animate-in fade-in slide-in-from-bottom"
                 style={{ animationDelay: `${i * 100}ms` }}
               >
-                <div className="flex items-start gap-3 mb-3">
-                  <span className="text-2xl">{suggestion.icon}</span>
-                  <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">{suggestion.title}</h3>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{suggestion.icon}</span>
+                    <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">{suggestion.title}</h3>
+                  </div>
+                  {suggestion.copyable && (
+                    <button
+                      onClick={() => copyToClipboard(suggestion.content, i)}
+                      className={`flex-shrink-0 px-2.5 py-1 text-xs rounded-md border transition ${
+                        copiedField === i
+                          ? 'bg-green-500/20 border-green-500/40 text-green-400'
+                          : 'bg-slate-700 border-slate-600 text-slate-400 hover:text-white hover:bg-slate-600'
+                      }`}
+                    >
+                      {copiedField === i ? '✓ Copied' : 'Copy'}
+                    </button>
+                  )}
                 </div>
-                <p className="text-sm text-slate-400 leading-relaxed line-clamp-4">
+                <p className="text-sm text-slate-400 leading-relaxed">
                   {suggestion.content}
                 </p>
               </div>
@@ -96,6 +96,7 @@ export default function Result() {
   const [expandedItems, setExpandedItems] = useState({})
   const [expandedSuggestion, setExpandedSuggestion] = useState(null)
   const [filterRisk, setFilterRisk] = useState("all")
+  const [searchQuery, setSearchQuery] = useState("")
 
   const toggleExpand = (index) => {
     setExpandedItems(prev => ({
@@ -115,6 +116,11 @@ export default function Result() {
 
   const processedResults = resultsWithStableId
     .filter(r => filterRisk === "all" || r.risk_level === filterRisk)
+    .filter(r => {
+      if (!searchQuery.trim()) return true
+      const q = searchQuery.toLowerCase()
+      return r.clause?.toLowerCase().includes(q) || r.predicted_label_name?.toLowerCase().includes(q)
+    })
     .sort((a, b) => (riskWeights[b.risk_level] || 0) - (riskWeights[a.risk_level] || 0))
 
   const highRiskCount = results.filter(r => r.risk_level === "high").length
@@ -229,6 +235,30 @@ export default function Result() {
             </div>
           </div>
         )}
+
+        {/* Search Bar */}
+        <div className="mb-8 relative">
+          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search clauses by keyword or label..."
+            className="w-full pl-11 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:bg-slate-800 transition"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')}
+              className="absolute inset-y-0 right-4 flex items-center text-slate-500 hover:text-white transition">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
 
         {/* Results Section */}
         <div className="space-y-6">
