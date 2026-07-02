@@ -109,7 +109,7 @@ export default function Home() {
               <h1 className="text-2xl font-bold text-white">LexGuard</h1>
             </div>
             <nav>
-              <button onClick={scrollToUpload} className="text-gray-400 hover:text-white transition">Analyze</button>
+              <button onClick={scrollToUpload} className="text-gray-400 hover:text-white transition">Start Analyzing</button>
             </nav>
           </div>
         </header>
