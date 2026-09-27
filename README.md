@@ -153,6 +153,32 @@ The frontend runs on `http://localhost:5173` and proxies `/api` requests to the 
 
 ---
 
+## 🐳 Docker Setup (Recommended)
+
+Run the full stack (FastAPI backend + React frontend + Nginx proxy) with a single command:
+
+### 1. Set your Gemini API key
+Create or verify your `.env` file in the root directory (or use `.env.example` as a template):
+```bash
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+### 2. Build and start containers
+```bash
+docker compose up --build
+```
+
+- **Frontend**: Available at `http://localhost` (or `http://localhost:5173`)
+- **Backend API**: Available at `http://localhost:8000` (docs at `http://localhost:8000/docs`)
+- **API Proxy**: Frontend automatically routes `/api/*` to the backend container via Nginx.
+
+To stop the containers:
+```bash
+docker compose down
+```
+
+---
+
 ## 🔌 API Reference
 
 ### `POST /api/analyze`
